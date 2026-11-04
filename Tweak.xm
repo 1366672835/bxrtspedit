@@ -1,45 +1,35 @@
-﻿//
-//  BXRTSPEdit.xm —— 给「百相 / BXFloat 0.20.33 原版」加一个悬浮 RTSP 圆钮：点开输入框改地址
 //
-//  原理（反汇编确认）：
-//    BXFloat 里取地址的函数（arm64 0x3311C4 / arm64e 0x336AC4）开头：
-//        ldp  x0, x28, [x0, #0x20]      ; x0 = self->_urlString (NSString)
-//        ...
-//        msgSend(x0, @selector(UTF8String))
-//        x21 = char *url                ; 后面整条链路都用它
-//    所以在函数入口把 self+0x20 换成用户输入的 NSString，后面全部生效，原版 UI 不用改。
+//  Tweak.xm —— 给「百相 / BXFloat 0.20.33 原版」加一个悬浮 RTSP 圆钮：点开输入框改地址
 //
-//  注入：TrollFools / TrollStore，和 BXFloat.dylib 一起注入宿主 App。
+//  改地址原理（反汇编确认）：
+//    BXFloat 里取地址的是一个 block/C 函数（不是 ObjC 方法），
+//    arm64 入口 0x3311C4 / arm64e 0x336AC8 处第一条指令是
+//        stp d15, d14, [sp, #-0xa0]!
+//    紧接着就
+//        ldp x0, x28, [x0, #0x20]      ; x0 = ctx->url (NSString)
+//    所以在入口打一个跳转（BXHook.m 的 inline hook），先把 ctx+0x20 换成用户
+//    填的地址，再跳回原代码继续，整条链路就都用我们的地址。
 //
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
 #import <QuartzCore/QuartzCore.h>
 #import <objc/runtime.h>
-#import <objc/message.h>
 #import <mach-o/dyld.h>
 #import <string.h>
 #import <stdlib.h>
 
+extern int BXInstallInlineHook(uintptr_t target, uintptr_t resume);
 
-
-// ── 目标函数偏移（BXFloat 0.20.33）──────────────────────────────────────────────
 #if defined(__arm64e__)
-static const uintptr_t kCand[] = { 0x336AC4, 0x336AC8, 0x336ACC, 0x336AD0 };
+static const uintptr_t kPatchOff = 0x336AC8;   // 跳过入口的 pacibsp
 #else
-static const uintptr_t kCand[] = { 0x3311C4 };
+static const uintptr_t kPatchOff = 0x3311C4;
 #endif
-static const size_t kCandN = sizeof(kCand) / sizeof(kCand[0]);
-static const ptrdiff_t kURLIvarOff = 0x20;   // ldp x0, x28, [x0, #0x20]
 
-extern void BXRawSetURL(id self, ptrdiff_t offset, id url);
+static NSString *gURL = nil;                   // nil = 用 dylib 内嵌地址
 
-static NSString *gURL = nil;                 // nil = 用 dylib 内嵌地址
-static IMP gOrig = NULL;
-static Class gCls = Nil;
-static SEL gSel = NULL;
-
-#pragma mark - 找 BXFloat 镜像基址
+id BXCurrentURL(void) { return gURL; }         // 给 BXStore.m 用
 
 static uintptr_t BXSlide(void) {
     uint32_t n = _dyld_image_count();
@@ -54,51 +44,13 @@ static uintptr_t BXSlide(void) {
     return 0;
 }
 
-#pragma mark - 挂钩
-
-static void BXWrapper(id self, SEL _cmd) {
-    if (gURL.length && self) {
-        BXRawSetURL(self, kURLIvarOff, gURL);   // 实现在 BXStore.m（MRC 编译）
-    }
-    if (gOrig) ((void (*)(id, SEL))gOrig)(self, _cmd);
-}
-
-static BOOL BXHook(void) {
+static void BXInstall(void) {
     uintptr_t slide = BXSlide();
-    if (!slide) { NSLog(@"[BXRTSP] 找不到 BXFloat 镜像"); return NO; }
-
-    uintptr_t lo[8], hi[8];
-    size_t nn = 0;
-    for (size_t i = 0; i < kCandN; i++) {
-        lo[nn] = slide + kCand[i];
-        hi[nn] = lo[nn] + 0x40;      // IMP 可能落在函数的 pacibsp/对齐变体上，给 64 字节容差
-        nn++;
-    }
-
-    unsigned int count = 0;
-    Class *classes = objc_copyClassList(&count);
-    for (unsigned int i = 0; i < count && !gOrig; i++) {
-        unsigned mc = 0;
-        Method *ms = class_copyMethodList(classes[i], &mc);
-        for (unsigned j = 0; j < mc && !gOrig; j++) {
-            uintptr_t imp = (uintptr_t)method_getImplementation(ms[j]);
-            for (size_t k = 0; k < nn; k++) {
-                if (imp >= lo[k] && imp < hi[k]) {
-                    gCls = classes[i];
-                    gSel = method_getName(ms[j]);
-                    gOrig = method_setImplementation(ms[j], (IMP)BXWrapper);
-                    NSLog(@"[BXRTSP] hooked -[%s %s] imp=%p (cand %#lx)",
-                          class_getName(gCls), sel_getName(gSel), (void *)imp, (unsigned long)kCand[k]);
-                    break;
-                }
-            }
-        }
-        free(ms);
-    }
-    free(classes);
-
-    if (!gOrig) NSLog(@"[BXRTSP] 没命中目标方法 —— 宿主不是 0.20.33 或偏移不同");
-    return gOrig != NULL;
+    if (!slide) { NSLog(@"[BXRTSP] 找不到 BXFloat 镜像（确认两个 dylib 都注入了）"); return; }
+    uintptr_t patch = slide + kPatchOff;
+    int rc = BXInstallInlineHook(patch, patch + 4);
+    NSLog(@"[BXRTSP] inline hook patch=%p rc=%d (0=成功 -1=改不了内存保护 -2=跳转太远)",
+          (void *)patch, rc);
 }
 
 #pragma mark - 弹窗
@@ -119,7 +71,7 @@ static void BXEdit(void) {
 
     UIAlertController *ac =
         [UIAlertController alertControllerWithTitle:@"RTSP 地址"
-                                            message:@"保存后下一次点「预览」生效"
+                                            message:@"保存后点「预览」即用这个地址"
                                      preferredStyle:UIAlertControllerStyleAlert];
     [ac addTextFieldWithConfigurationHandler:^(UITextField *tf) {
         tf.text = gURL.length ? gURL : (saved.length ? saved : @"");
@@ -135,7 +87,7 @@ static void BXEdit(void) {
         gURL = nil;
         [st removeObjectForKey:@"bx_rtsp_url"];
         [st synchronize];
-        NSLog(@"[BXRTSP] 清空覆盖，回到 dylib 内嵌地址");
+        NSLog(@"[BXRTSP] 清空，回到 dylib 内嵌地址");
     }]];
     [ac addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
     [ac addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault
@@ -182,7 +134,6 @@ static void BXButton(void) {
         gBtn.layer.shadowRadius = 4;
         gBtn.layer.shadowOffset = CGSizeMake(0, 2);
         [gBtn addTarget:gBtn action:@selector(bxTapAction) forControlEvents:UIControlEventTouchUpInside];
-
         UIPanGestureRecognizer *pan =
             [[UIPanGestureRecognizer alloc] initWithTarget:gBtn action:@selector(bxPanAction:)];
         [gBtn addGestureRecognizer:pan];
@@ -193,7 +144,6 @@ static void BXButton(void) {
     NSLog(@"[BXRTSP] 圆钮已挂上 frame=%@", NSStringFromCGRect(gBtn.frame));
 }
 
-// 用关联对象在 UIButton 上补两个方法（全局只加一次）
 @interface UIButton (BXRTSP)
 - (void)bxTapAction;
 - (void)bxPanAction:(UIPanGestureRecognizer *)g;
@@ -230,7 +180,7 @@ static void BXInit(void) {
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)),
                        dispatch_get_main_queue(), ^{
-            BXHook();
+            BXInstall();
             BXButton();
         });
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.5 * NSEC_PER_SEC)),

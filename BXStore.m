@@ -1,17 +1,19 @@
 //
 //  BXStore.m —— 用 MRC 编译（-fno-objc-arc）
-//  作用：把某个对象里指定偏移的强引用槽改成我们的字符串。
-//        ARC 下不允许 (void**) -> (__strong id*) 的转换，所以单独放到这里。
+//  1) BXSetCtxURL：把上下文对象里 +0x20 的强引用改成用户填的地址
+//  2) 供 BXHook.m 的 stub 调用
 //
 
 #import <objc/runtime.h>
 #import <stddef.h>
 
-// 这个 SDK 的 runtime.h 不一定声明它，自己声明（libobjc 里有实现）
 extern void objc_storeStrong(id *location, id obj);
+extern id BXCurrentURL(void);      // 在 Tweak.xm 里实现（ARC 那边持有 gURL）
 
-void BXRawSetURL(id self, ptrdiff_t offset, id url) {
-    if (!self) return;
-    id *slot = (id *)((char *)self + offset);
-    objc_storeStrong(slot, url);   // 等价 self->ivar = url（release 旧值 / retain 新值）
+void BXSetCtxURL(void *ctx) {
+    if (!ctx) return;
+    id url = BXCurrentURL();
+    if (!url) return;
+    id *slot = (id *)((char *)ctx + 0x20);
+    objc_storeStrong(slot, url);
 }

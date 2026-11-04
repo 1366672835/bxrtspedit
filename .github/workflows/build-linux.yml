@@ -1,4 +1,4 @@
-name: build-linux
+﻿name: build-linux
 
 on:
   push:
@@ -64,12 +64,14 @@ jobs:
             clang $CF -x objective-c -fobjc-arc -c Tweak.xm -o "out/tweak-$ARCH.o"
             echo "-- compile BXStore.m (MRC)"
             clang $CF -x objective-c -fno-objc-arc -c BXStore.m -o "out/store-$ARCH.o"
+            echo "-- compile BXHook.m (MRC, inline hook)"
+            clang $CF -fno-objc-arc -c BXHook.m -o "out/hook-$ARCH.o"
             echo "-- link"
             clang $CF -fuse-ld=lld -dynamiclib \
               -Wl,-install_name,@executable_path/BXRTSPEdit.dylib \
               -Wl,-undefined,dynamic_lookup \
               -framework UIKit -framework Foundation -framework QuartzCore -lobjc \
-              "out/tweak-$ARCH.o" "out/store-$ARCH.o" -o "out/BXRTSPEdit-$ARCH.dylib"
+              "out/tweak-$ARCH.o" "out/store-$ARCH.o" "out/hook-$ARCH.o" -o "out/BXRTSPEdit-$ARCH.dylib"
             ls -l "out/BXRTSPEdit-$ARCH.dylib"
           done
 
