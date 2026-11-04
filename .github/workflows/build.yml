@@ -1,0 +1,58 @@
+name: build-bxrtspedit
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          set -euo pipefail
+          if [ -d /Applications/Xcode.app ]; then sudo xcode-select -s /Applications/Xcode.app; fi
+          clang --version | head -n 1
+
+      - name: Install Theos + SDKs
+        run: |
+          set -euo pipefail
+          export THEOS="$HOME/theos"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          echo "$THEOS/bin" >> "$GITHUB_PATH"
+          git clone --recursive --depth 1 https://github.com/theos/theos.git "$THEOS"
+          mkdir -p "$THEOS/sdks"
+          curl -fL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
+          tar xzf /tmp/sdks.tar.gz -C /tmp
+          cp -R /tmp/sdks-master/*.sdk "$THEOS/sdks/" || true
+          ls "$THEOS/sdks/"
+
+      - name: Install ldid
+        run: brew install ldid || true
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          make clean || true
+          make -j4
+
+      - name: Verify
+        run: |
+          set -euo pipefail
+          DY=$(find .theos/obj -name 'BXRTSPEdit.dylib' -type f | head -n1)
+          [ -n "$DY" ] || { echo "::error::BXRTSPEdit.dylib not produced"; exit 1; }
+          lipo -archs "$DY"
+          otool -D "$DY"
+          ldid -S "$DY" || true
+          mkdir -p dist && cp -f "$DY" dist/BXRTSPEdit.dylib
+          shasum -a 256 dist/BXRTSPEdit.dylib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BXRTSPEdit-dylib
+          path: dist/BXRTSPEdit.dylib
+          if-no-files-found: error
