@@ -1,0 +1,92 @@
+name: build-linux
+
+on:
+  push:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang lld llvm python3
+          echo "--- clang ---"
+          clang --version | head -n 3
+          echo "--- lld tools ---"
+          ls /usr/lib/llvm-*/bin/ | grep -Ei 'ld64|lld' || true
+          if command -v ld64.lld >/dev/null; then
+            echo "ld64.lld on PATH"
+          else
+            CAND=$(ls /usr/lib/llvm-*/bin/ld64.lld 2>/dev/null | head -n1 || true)
+            if [ -n "$CAND" ]; then sudo ln -sf "$CAND" /usr/local/bin/ld64.lld; echo "linked $CAND"; fi
+          fi
+          command -v ld64.lld || echo "WARN: no ld64.lld"
+
+      - name: Fetch iOS SDK
+        run: |
+          set -euo pipefail
+          curl -fL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
+          tar xzf /tmp/sdks.tar.gz -C /tmp
+          SDK=$(ls -d /tmp/sdks-master/iPhoneOS*.sdk | sort -V | tail -n 1)
+          echo "SDK=$SDK" >> "$GITHUB_ENV"
+          echo "picked: $SDK"
+          ls "$SDK/System/Library/Frameworks" | head -n 5
+
+      - name: Build arm64 and arm64e slices
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          for ARCH in arm64 arm64e; do
+            echo "===== $ARCH ====="
+            clang -x objective-c -std=gnu11 \
+              -target "$ARCH-apple-ios14.0" -isysroot "$SDK" \
+              -fobjc-arc -O2 -fuse-ld=lld -dynamiclib -fno-exceptions \
+              -Wl,-install_name,@executable_path/BXRTSPEdit.dylib \
+              -Wl,-undefined,dynamic_lookup \
+              -framework UIKit -framework Foundation -framework QuartzCore -lobjc \
+              Tweak.xm -o "out/BXRTSPEdit-$ARCH.dylib"
+            ls -l "out/BXRTSPEdit-$ARCH.dylib"
+            file "out/BXRTSPEdit-$ARCH.dylib" || true
+          done
+
+      - name: Merge into universal
+        run: |
+          set -euo pipefail
+          python3 tools/make_fat.py dist/BXRTSPEdit.dylib \
+            0x0100000c:0:out/BXRTSPEdit-arm64.dylib \
+            0x0100000c:0x80000002:out/BXRTSPEdit-arm64e.dylib
+          ls -l dist/BXRTSPEdit.dylib
+
+      - name: Verify
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import struct, pathlib
+          p = pathlib.Path("dist/BXRTSPEdit.dylib")
+          d = p.read_bytes()
+          print("size", len(d), "magic", hex(struct.unpack(">I", d[:4])[0]))
+          n = struct.unpack(">I", d[4:8])[0]
+          print("slices", n)
+          for i in range(n):
+              ct, cs, off, size, al = struct.unpack(">IIIII", d[8+i*20:8+i*20+20])
+              sl = d[off:off+size]
+              mg = struct.unpack("<I", sl[:4])[0]
+              print("  slice%d cputype=%#x cpusub=%#x filetype=%d magic=%#x" % (i, ct, cs, struct.unpack("<I", sl[12:16])[0], mg))
+              assert mg == 0xfeedfacf, "not a 64-bit mach-o"
+              assert struct.unpack("<I", sl[12:16])[0] == 6, "not a dylib"
+          print("verify OK")
+          PY
+          shasum -a 256 dist/BXRTSPEdit.dylib
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BXRTSPEdit-dylib
+          path: dist/BXRTSPEdit.dylib
+          if-no-files-found: error
