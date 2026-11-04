@@ -7,6 +7,9 @@
 #import <objc/runtime.h>
 #import <stddef.h>
 
+// 这个 SDK 的 runtime.h 不一定声明它，自己声明（libobjc 里有实现）
+extern void objc_storeStrong(id *location, id obj);
+
 void BXRawSetURL(id self, ptrdiff_t offset, id url) {
     if (!self) return;
     id *slot = (id *)((char *)self + offset);

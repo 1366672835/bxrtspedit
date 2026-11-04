@@ -75,9 +75,9 @@ static BOOL BXHook(void) {
         nn++;
     }
 
-    int count = 0;
+    unsigned int count = 0;
     Class *classes = objc_copyClassList(&count);
-    for (int i = 0; i < count && !gOrig; i++) {
+    for (unsigned int i = 0; i < count && !gOrig; i++) {
         unsigned mc = 0;
         Method *ms = class_copyMethodList(classes[i], &mc);
         for (unsigned j = 0; j < mc && !gOrig; j++) {
