@@ -32,9 +32,9 @@ jobs:
       - name: Fetch iOS SDK
         run: |
           set -euo pipefail
-          curl -fL -o /tmp/sdks.tar.gz https://github.com/theos/sdks/archive/refs/heads/master.tar.gz
-          tar xzf /tmp/sdks.tar.gz -C /tmp
-          SDK=$(ls -d /tmp/sdks-master/iPhoneOS*.sdk | sort -V | tail -n 1)
+          # codeload 的 tarball 经常失败，改用 git clone
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
+          SDK=$(ls -d /tmp/sdks/iPhoneOS*.sdk | sort -V | tail -n 1)
           echo "SDK=$SDK" >> "$GITHUB_ENV"
           echo "picked: $SDK"
           ls "$SDK/System/Library/Frameworks" | head -n 5
