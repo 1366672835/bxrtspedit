@@ -1,4 +1,4 @@
-//
+﻿//
 //  BXRTSPEdit.xm —— 给「百相 / BXFloat 0.20.33 原版」加一个悬浮 RTSP 圆钮：点开输入框改地址
 //
 //  原理（反汇编确认）：
@@ -21,9 +21,7 @@
 #import <string.h>
 #import <stdlib.h>
 
-#if __has_feature(objc_arc)
-extern void objc_storeStrong(id *location, id obj);
-#endif
+
 
 // ── 目标函数偏移（BXFloat 0.20.33）──────────────────────────────────────────────
 #if defined(__arm64e__)
@@ -33,6 +31,8 @@ static const uintptr_t kCand[] = { 0x3311C4 };
 #endif
 static const size_t kCandN = sizeof(kCand) / sizeof(kCand[0]);
 static const ptrdiff_t kURLIvarOff = 0x20;   // ldp x0, x28, [x0, #0x20]
+
+extern void BXRawSetURL(id self, ptrdiff_t offset, id url);
 
 static NSString *gURL = nil;                 // nil = 用 dylib 内嵌地址
 static IMP gOrig = NULL;
@@ -58,8 +58,7 @@ static uintptr_t BXSlide(void) {
 
 static void BXWrapper(id self, SEL _cmd) {
     if (gURL.length && self) {
-        void **slot = (void **)((uint8_t *)(__bridge void *)self + kURLIvarOff);
-        objc_storeStrong((id *)slot, gURL);
+        BXRawSetURL(self, kURLIvarOff, gURL);   // 实现在 BXStore.m（MRC 编译）
     }
     if (gOrig) ((void (*)(id, SEL))gOrig)(self, _cmd);
 }

@@ -1,0 +1,73 @@
+﻿2026-11-04T16:13:04.0832499Z ##[group]Run actions/checkout@v4
+2026-11-04T16:13:04.0833446Z with:
+2026-11-04T16:13:04.0833935Z   repository: 1366672835/bxrtspedit
+2026-11-04T16:13:04.0837600Z   token: ***
+2026-11-04T16:13:04.0838079Z   ssh-strict: true
+2026-11-04T16:13:04.0838580Z   ssh-user: git
+2026-11-04T16:13:04.0839343Z   persist-credentials: true
+2026-11-04T16:13:04.0840204Z   clean: true
+2026-11-04T16:13:04.0841057Z   sparse-checkout-cone-mode: true
+2026-11-04T16:13:04.0841612Z   fetch-depth: 1
+2026-11-04T16:13:04.0842097Z   fetch-tags: false
+2026-11-04T16:13:04.0842595Z   show-progress: true
+2026-11-04T16:13:04.0843075Z   lfs: false
+2026-11-04T16:13:04.0843605Z   submodules: false
+2026-11-04T16:13:04.0844087Z   set-safe-directory: true
+2026-11-04T16:13:04.0844642Z   allow-unsafe-pr-checkout: false
+2026-11-04T16:13:04.0845610Z ##[endgroup]
+2026-11-04T16:13:04.9370809Z Syncing repository: 1366672835/bxrtspedit
+2026-11-04T16:13:04.9374069Z ##[group]Getting Git version info
+2026-11-04T16:13:04.9375515Z Working directory is '/home/runner/work/bxrtspedit/bxrtspedit'
+2026-11-04T16:13:04.9377682Z [command]/usr/bin/git version
+2026-11-04T16:13:04.9646146Z git version 2.56.0
+2026-11-04T16:13:04.9669337Z ##[endgroup]
+2026-11-04T16:13:04.9689380Z Temporarily overriding HOME='/home/runner/work/_temp/2ac48aeb-5ac1-4b64-9533-887f945a0cdd' before making global git config changes
+2026-11-04T16:13:04.9694889Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T16:13:04.9700147Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/bxrtspedit/bxrtspedit
+2026-11-04T16:13:04.9753856Z Deleting the contents of '/home/runner/work/bxrtspedit/bxrtspedit'
+2026-11-04T16:13:04.9760513Z ##[group]Initializing the repository
+2026-11-04T16:13:04.9766024Z [command]/usr/bin/git init /home/runner/work/bxrtspedit/bxrtspedit
+2026-11-04T16:13:05.0289949Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-04T16:13:05.0292595Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-04T16:13:05.0295271Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-04T16:13:05.0297186Z hint: call:
+2026-11-04T16:13:05.0298279Z hint:
+2026-11-04T16:13:05.0299802Z hint: 	git config --global init.defaultBranch <name>
+2026-11-04T16:13:05.0301380Z hint:
+2026-11-04T16:13:05.0302983Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-04T16:13:05.0306394Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-04T16:13:05.0309705Z hint:
+2026-11-04T16:13:05.0311339Z hint: 	git branch -m <name>
+2026-11-04T16:13:05.0313312Z hint:
+2026-11-04T16:13:05.0316451Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-04T16:13:05.0320759Z Initialized empty Git repository in /home/runner/work/bxrtspedit/bxrtspedit/.git/
+2026-11-04T16:13:05.0327535Z [command]/usr/bin/git remote add origin https://github.com/1366672835/bxrtspedit
+2026-11-04T16:13:05.0380118Z ##[endgroup]
+2026-11-04T16:13:05.0383152Z ##[group]Disabling automatic garbage collection
+2026-11-04T16:13:05.0385770Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-04T16:13:05.0426381Z ##[endgroup]
+2026-11-04T16:13:05.0429373Z ##[group]Setting up auth
+2026-11-04T16:13:05.0436058Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T16:13:05.0478888Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T16:13:05.0893761Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T16:13:05.0933239Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T16:13:05.1150187Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T16:13:05.1189556Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T16:13:05.1390858Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-04T16:13:05.1439170Z ##[endgroup]
+2026-11-04T16:13:05.1441173Z ##[group]Fetching the repository
+2026-11-04T16:13:05.1459649Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a693dd9c2aa914c45f4b7a6a5878e434edb6c20d:refs/remotes/origin/main
+2026-11-04T16:13:05.4218477Z From https://github.com/1366672835/bxrtspedit
+2026-11-04T16:13:05.4221518Z  * [new ref]         a693dd9c2aa914c45f4b7a6a5878e434edb6c20d -> origin/main
+2026-11-04T16:13:05.4227224Z ##[endgroup]
+2026-11-04T16:13:05.4229998Z ##[group]Determining the checkout info
+2026-11-04T16:13:05.4232935Z ##[endgroup]
+2026-11-04T16:13:05.4234838Z [command]/usr/bin/git sparse-checkout disable
+2026-11-04T16:13:05.4292562Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-04T16:13:05.4325510Z ##[group]Checking out the ref
+2026-11-04T16:13:05.4331258Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-11-04T16:13:05.4420610Z Switched to a new branch 'main'
+2026-11-04T16:13:05.4429671Z branch 'main' set up to track 'origin/main'.
+2026-11-04T16:13:05.4435949Z ##[endgroup]
+2026-11-04T16:13:05.4479537Z [command]/usr/bin/git log -1 --format=%H
+2026-11-04T16:13:05.4505883Z a693dd9c2aa914c45f4b7a6a5878e434edb6c20d
