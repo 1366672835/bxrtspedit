@@ -27,10 +27,27 @@ jobs:
           fi
           command -v ld64.lld || echo "WARN: no ld64.lld"
 
+      - name: Cache iOS SDK
+        id: sdkcache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/sdks
+          key: theos-sdks-v1
+
       - name: Fetch iOS SDK
         run: |
           set -euo pipefail
-          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
+          if [ -d /tmp/sdks ]; then
+            echo "cache hit: /tmp/sdks"
+          else
+            for i in 1 2 3 4; do
+              echo "clone attempt $i"
+              if git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks; then break; fi
+              rm -rf /tmp/sdks
+              sleep 8
+            done
+          fi
+          test -d /tmp/sdks
           SDK=$(ls -d /tmp/sdks/iPhoneOS*.sdk | sort -V | tail -n 1)
           echo "SDK=$SDK" >> "$GITHUB_ENV"
           echo "picked: $SDK"
