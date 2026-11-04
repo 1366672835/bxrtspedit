@@ -76,6 +76,7 @@ jobs:
       - name: Merge into universal
         run: |
           set -euo pipefail
+          mkdir -p dist
           python3 tools/make_fat.py dist/BXRTSPEdit.dylib \
             0x0100000c:0:out/BXRTSPEdit-arm64.dylib \
             0x0100000c:0x80000002:out/BXRTSPEdit-arm64e.dylib
