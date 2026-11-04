@@ -59,11 +59,11 @@ jobs:
           mkdir -p out
           for ARCH in arm64 arm64e; do
             echo "===== $ARCH ====="
-            CF="-x objective-c -std=gnu11 -target $ARCH-apple-ios14.0 -isysroot $SDK -O2 -fno-exceptions"
+            CF="-std=gnu11 -target $ARCH-apple-ios14.0 -isysroot $SDK -O2 -fno-exceptions"
             echo "-- compile Tweak.xm (ARC)"
-            clang $CF -fobjc-arc -c Tweak.xm -o "out/tweak-$ARCH.o"
+            clang $CF -x objective-c -fobjc-arc -c Tweak.xm -o "out/tweak-$ARCH.o"
             echo "-- compile BXStore.m (MRC)"
-            clang $CF -fno-objc-arc -c BXStore.m -o "out/store-$ARCH.o"
+            clang $CF -x objective-c -fno-objc-arc -c BXStore.m -o "out/store-$ARCH.o"
             echo "-- link"
             clang $CF -fuse-ld=lld -dynamiclib \
               -Wl,-install_name,@executable_path/BXRTSPEdit.dylib \
